@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import api from '../../utils/api';
-import useMediaRecorder, { RECORDING_STATES, fmtTime } from '../../hooks/useMediaRecorder';
-import AudioVisualiser from '../../components/AudioVisualiser';
-import PulseRings from '../../components/PulseRings';
-import '../../styles/kiosk.css';
+import api from '../utils/api';
+import useMediaRecorder, { RECORDING_STATES, fmtTime } from '../hooks/useMediaRecorder';
+import AudioVisualiser from '../components/AudioVisualiser';
+import PulseRings from '../components/PulseRings';
+import '../styles/kiosk.css';
 
 // ── Kiosk screens ─────────────────────────────────────────────────────────
 const SCREENS = {

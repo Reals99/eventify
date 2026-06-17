@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../utils/api';
-import DriveStatus from '../../components/DriveStatus';
-import KeepAliveBanner from '../../components/KeepAliveBanner';
-
+import { useAuth } from '../context/AuthContext';
+import api from '../utils/api';
+import DriveStatus from '../components/DriveStatus';
+import KeepAliveBanner from '../components/KeepAliveBanner';
 const STATUS_COLORS = {
   active:   { bg: 'var(--green-bg)',  text: 'var(--green)'  },
   draft:    { bg: 'var(--bg)',        text: 'var(--text-3)'  },

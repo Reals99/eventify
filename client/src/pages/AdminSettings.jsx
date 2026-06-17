@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../utils/api';
-import SocialAccountsPanel from '../../components/SocialAccountsPanel';
+import { useAuth } from '../context/AuthContext';
+import api from '../utils/api';
+import SocialAccountsPanel from '../components/SocialAccountsPanel';
 
 export default function AdminSettings() {
   const { admin } = useAuth();

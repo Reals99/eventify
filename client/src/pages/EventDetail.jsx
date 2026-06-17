@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import api from '../../utils/api';
+import api from '../utils/api';
 
 const PLATFORM_COLORS = {
   tiktok:    '#010101',

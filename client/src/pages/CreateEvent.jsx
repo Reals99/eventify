@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import api from '../../utils/api';
-import { THEME_PRESETS, FRAME_STYLES, FONT_STYLES, SOCIAL_PLATFORMS } from '../../utils/eventConfig';
-import StepWizard from '../../components/StepWizard';
-import ThemePreview from '../../components/ThemePreview';
-import FrameStyleCard from '../../components/FrameStyleCard';
+import api from '../utils/api';
+import { THEME_PRESETS, FRAME_STYLES, FONT_STYLES, SOCIAL_PLATFORMS } from '../utils/eventConfig';
+import StepWizard from '../components/StepWizard';
+import ThemePreview from '../components/ThemePreview';
+import FrameStyleCard from '../components/FrameStyleCard';
 
 const STEPS = ['Details', 'Theme', 'Frame & Kiosk', 'Social & Publish'];
 

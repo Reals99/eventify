@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import api from '../../utils/api';
-import VideoCard from '../../components/VideoCard';
-import ProcessingSpinner from '../../components/ProcessingSpinner';
-import PublishPanel from '../../components/PublishPanel';
-import useProcessing from '../../hooks/useProcessing';
+import api from '../utils/api';
+import VideoCard from '../components/VideoCard';
+import ProcessingSpinner from '../components/ProcessingSpinner';
+import PublishPanel from '../components/PublishPanel';
+import useProcessing from '../hooks/useProcessing';
 
 const FILTER_TABS = [
   { id: 'all',      label: 'All' },
