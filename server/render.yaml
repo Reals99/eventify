@@ -1,0 +1,75 @@
+# Render.com deployment configuration
+# Docs: https://render.com/docs/yaml-spec
+
+services:
+  - type: web
+    name: eventify-server
+    runtime: node
+    plan: free           # free tier — spins down after 15 min inactivity
+    region: oregon       # or frankfurt for EU
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /api/health
+
+    envVars:
+      # ── App ──────────────────────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+
+      # ── Set these manually in the Render dashboard ────────────────────────
+      # (sync: false = secret, not stored in this file)
+
+      # MongoDB Atlas connection string
+      - key: MONGO_URI
+        sync: false
+
+      # JWT — generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+
+      # Your Vercel frontend URL e.g. https://eventify.vercel.app
+      - key: CLIENT_URL
+        sync: false
+
+      # Your Render server public URL e.g. https://eventify-server.onrender.com
+      - key: SERVER_URL
+        sync: false
+
+      # ── Cloudinary ────────────────────────────────────────────────────────
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # ── Google (Drive + YouTube share same credentials) ───────────────────
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false     # https://eventify-server.onrender.com/api/auth/google/callback
+
+      # ── Anthropic (Claude AI) ─────────────────────────────────────────────
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # ── Social platforms ──────────────────────────────────────────────────
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
+      - key: TIKTOK_CLIENT_KEY
+        sync: false
+      - key: TIKTOK_CLIENT_SECRET
+        sync: false
+      - key: TWITTER_CLIENT_ID
+        sync: false
+      - key: TWITTER_CLIENT_SECRET
+        sync: false
+      # Note: YouTube reuses GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET

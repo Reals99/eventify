@@ -1,0 +1,380 @@
+/* ── Kiosk — tablet-first full-screen UI ─────────────────────────────────── */
+
+.kiosk-root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--kiosk-bg, #EEEDFE);
+  overflow: hidden;
+  position: relative;
+  /* Prevent text selection on a touch kiosk */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ── Screens ─────────────────────────────────────────────────────────────── */
+.kiosk-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: kiosk-fade-in 0.3s ease;
+}
+
+@keyframes kiosk-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Idle screen ─────────────────────────────────────────────────────────── */
+.kiosk-idle-header {
+  position: absolute;
+  top: 24px;
+  left: 0; right: 0;
+  text-align: center;
+}
+
+.kiosk-idle-footer {
+  position: absolute;
+  bottom: 24px;
+  left: 0; right: 0;
+  text-align: center;
+}
+
+.kiosk-event-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: var(--kiosk-primary);
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+.kiosk-event-title {
+  font-size: clamp(20px, 4vw, 36px);
+  font-weight: 700;
+  color: var(--kiosk-accent);
+  line-height: 1.2;
+}
+
+.kiosk-event-sub {
+  font-size: clamp(13px, 2vw, 16px);
+  color: var(--kiosk-accent);
+  opacity: 0.65;
+  margin-top: 6px;
+}
+
+/* ── Big record button ───────────────────────────────────────────────────── */
+.kiosk-big-btn-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 200px;
+}
+
+.kiosk-big-btn {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: var(--kiosk-primary);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--kiosk-primary) 50%, transparent);
+  transition: transform 0.12s, box-shadow 0.12s;
+  position: relative;
+  z-index: 2;
+}
+
+.kiosk-big-btn:active {
+  transform: scale(0.94);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--kiosk-primary) 40%, transparent);
+}
+
+/* ── Mode selection ──────────────────────────────────────────────────────── */
+.kiosk-mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.kiosk-mode-card {
+  background: var(--kiosk-surface, #fff);
+  border: 2px solid transparent;
+  border-radius: 20px;
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.kiosk-mode-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+.kiosk-mode-card.selected {
+  border-color: var(--kiosk-primary);
+  background: color-mix(in srgb, var(--kiosk-secondary) 80%, white);
+}
+
+.kiosk-mode-icon {
+  font-size: 48px;
+  line-height: 1;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.kiosk-mode-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--kiosk-accent);
+  margin-bottom: 4px;
+}
+
+.kiosk-mode-desc {
+  font-size: 13px;
+  color: var(--kiosk-accent);
+  opacity: 0.6;
+  line-height: 1.4;
+}
+
+/* ── Name input screen ───────────────────────────────────────────────────── */
+.kiosk-name-input {
+  font-size: 20px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 2px solid var(--border);
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s;
+  background: var(--kiosk-surface, #fff);
+  color: var(--kiosk-accent);
+}
+
+.kiosk-name-input:focus {
+  border-color: var(--kiosk-primary);
+}
+
+/* ── Recording screen ────────────────────────────────────────────────────── */
+.kiosk-preview-wrap {
+  width: 100%;
+  max-width: 560px;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  background: #1a1a2e;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+
+.kiosk-preview-video {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  display: block;
+  transform: scaleX(-1); /* mirror for selfie */
+}
+
+.kiosk-rec-overlay {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.6);
+  padding: 5px 12px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.kiosk-rec-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #FF4444;
+  animation: rec-blink 1s infinite;
+}
+
+@keyframes rec-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+
+.kiosk-rec-timer {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.kiosk-progress-bar-wrap {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+}
+
+.kiosk-progress-bar {
+  height: 100%;
+  background: var(--kiosk-primary);
+  transition: width 0.5s linear;
+}
+
+/* ── Control buttons ─────────────────────────────────────────────────────── */
+.kiosk-ctrl-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.kiosk-ctrl-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: transform 0.1s, opacity 0.15s;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+}
+
+.kiosk-ctrl-btn:active { transform: scale(0.92); }
+
+.kiosk-ctrl-btn.start  { background: var(--kiosk-primary); color: #fff; width: 80px; height: 80px; }
+.kiosk-ctrl-btn.stop   { background: #E24B4A; color: #fff; width: 80px; height: 80px; }
+.kiosk-ctrl-btn.cancel { background: rgba(0,0,0,0.12); color: var(--kiosk-accent); }
+
+/* ── Done screen ─────────────────────────────────────────────────────────── */
+.kiosk-done-icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: #E1F5EE;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes pop-in {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ── Kiosk utility text styles ───────────────────────────────────────────── */
+.kiosk-h1 {
+  font-size: clamp(22px, 4vw, 38px);
+  font-weight: 700;
+  color: var(--kiosk-accent);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.kiosk-p {
+  font-size: clamp(14px, 2vw, 18px);
+  color: var(--kiosk-accent);
+  opacity: 0.7;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.kiosk-btn {
+  padding: 14px 36px;
+  border-radius: 50px;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.kiosk-btn:active { transform: scale(0.96); }
+.kiosk-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.kiosk-btn-primary {
+  background: var(--kiosk-primary);
+  color: #fff;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--kiosk-primary) 45%, transparent);
+}
+
+.kiosk-btn-ghost {
+  background: rgba(0,0,0,0.08);
+  color: var(--kiosk-accent);
+}
+
+/* ── Phase pill selector (Before / After) ────────────────────────────────── */
+.kiosk-phase-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.kiosk-phase-pill {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 50px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.15s;
+  background: rgba(0,0,0,0.07);
+  color: var(--kiosk-accent);
+  max-width: 200px;
+}
+
+.kiosk-phase-pill.selected {
+  background: var(--kiosk-primary);
+  color: #fff;
+  border-color: var(--kiosk-primary);
+}
+
+/* ── Upload progress ─────────────────────────────────────────────────────── */
+.kiosk-upload-bar-wrap {
+  width: 100%;
+  max-width: 360px;
+  height: 6px;
+  background: rgba(0,0,0,0.12);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+
+.kiosk-upload-bar {
+  height: 100%;
+  background: var(--kiosk-primary);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}

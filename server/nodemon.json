@@ -1,0 +1,9 @@
+{
+  "watch": [".", ".env"],
+  "ext": "js,json",
+  "ignore": ["node_modules", "uploads", "tmp", ".gdrive_tokens.json"],
+  "delay": 500,
+  "env": {
+    "NODE_ENV": "development"
+  }
+}
