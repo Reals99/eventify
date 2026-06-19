@@ -11,7 +11,13 @@ const multer = require('multer');
 const storage = multer.memoryStorage();
 
 const fileFilter = (_req, file, cb) => {
-  const allowed = ['video/webm', 'audio/webm', 'video/mp4', 'audio/mp4', 'video/quicktime'];
+  const allowed = [
+    'video/webm', 'audio/webm', 
+    'video/mp4', 'audio/mp4', 
+    'video/quicktime', 
+    'application/octet-stream', 
+    'text/plain' // iOS Safari sometimes mislabels empty or generic blobs
+  ];
   if (allowed.includes(file.mimetype)) {
     cb(null, true);
   } else {

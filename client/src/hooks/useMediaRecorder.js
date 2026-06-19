@@ -120,8 +120,10 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',
       'video/webm',
+      'video/mp4',
       'audio/webm;codecs=opus',
       'audio/webm',
+      'audio/mp4'
     ];
     const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || '';
 
@@ -133,8 +135,12 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
     };
 
     recorder.onstop = () => {
+      const fallbackType = mode === 'video' 
+        ? (MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'video/mp4')
+        : (MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4');
+
       const finalBlob = new Blob(chunksRef.current, {
-        type: mimeType || (mode === 'video' ? 'video/webm' : 'audio/webm'),
+        type: mimeType || fallbackType,
       });
       setBlob(finalBlob);
       setRecordingState(RECORDING_STATES.STOPPED);
