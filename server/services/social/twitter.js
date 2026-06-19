@@ -69,9 +69,13 @@ async function exchangeTwitterCode(code, codeVerifier) {
         let data = '';
         res.on('data', (c) => (data += c));
         res.on('end', () => {
-          const parsed = JSON.parse(data);
-          if (parsed.error) return reject(new Error(parsed.error_description || parsed.error));
-          resolve(parsed);
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) return reject(new Error(parsed.error_description || parsed.error));
+            resolve(parsed);
+          } catch (err) {
+            reject(new Error('Twitter auth response parse error: ' + err.message));
+          }
         });
       }
     );
@@ -180,7 +184,13 @@ async function twitterMediaUploadChunk(mediaId, chunk, segmentIndex, accessToken
       (res) => {
         let data = '';
         res.on('data', (c) => (data += c));
-        res.on('end', () => resolve(data ? JSON.parse(data) : {}));
+        res.on('end', () => {
+          try {
+            resolve(data ? JSON.parse(data) : {});
+          } catch (err) {
+            reject(new Error('Twitter media upload parse error: ' + err.message));
+          }
+        });
       }
     );
     req.on('error', reject);
@@ -235,9 +245,13 @@ async function publishToTwitter(adminId, { videoBuffer, caption, hashtags }) {
         let data = '';
         res.on('data', (c) => (data += c));
         res.on('end', () => {
-          const parsed = JSON.parse(data);
-          if (parsed.errors) return reject(new Error(parsed.errors[0]?.message));
-          resolve({ postId: parsed.data?.id, platform: 'twitter' });
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.errors) return reject(new Error(parsed.errors[0]?.message));
+            resolve({ postId: parsed.data?.id, platform: 'twitter' });
+          } catch (err) {
+            reject(new Error('Twitter publish response parse error: ' + err.message));
+          }
         });
       }
     );

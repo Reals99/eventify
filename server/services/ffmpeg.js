@@ -265,8 +265,7 @@ async function applyFrameOverlay(inputBuffer, frameConfig, eventInfo, guestName,
   }
 
   const inputPath  = writeTempFile(inputBuffer);
-  const outputPath = writeTempFile(Buffer.alloc(0), 'mp4');
-  fs.unlinkSync(outputPath); // FFmpeg will create it
+  const outputPath = path.join(os.tmpdir(), `eventify_${crypto.randomBytes(6).toString('hex')}.mp4`);
 
   try {
     const filterStr = buildFilterComplex(frameConfig.style || 'minimal', {

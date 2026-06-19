@@ -94,6 +94,15 @@ app.use((err, _req, res, _next) => {
   });
 });
 
+// ── Global Error Handling ─────────────────────────────────────────────────────
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception]', err.message, err.stack);
+  process.exit(1);
+});
+
 // ── Database + server start ───────────────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
 

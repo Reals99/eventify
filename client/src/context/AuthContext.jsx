@@ -5,7 +5,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
     // 1. BYPASS: Hardcode a fake admin user and set loading to false immediately
-    const [admin, setAdmin] = useState({ id: 'test-123', name: 'Admin', role: 'superadmin' });
+    const [admin, setAdmin] = useState({ id: '123456789012345678901234', name: 'Admin', role: 'superadmin' });
     const [loading, setLoading] = useState(false);
     const [isFirstRun, setIsFirstRun] = useState(false);
 

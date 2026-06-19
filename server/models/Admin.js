@@ -42,15 +42,6 @@ const adminSchema = new mongoose.Schema(
       twitter:   { accessToken: String, refreshToken: String, expiresAt: Number, userId: String, username: String, savedAt: Date },
       youtube:   { accessToken: String, refreshToken: String, expiresAt: Number, userId: String, username: String, savedAt: Date },
     },
-
-    // Social platform OAuth tokens (stored per admin)
-    socialTokens: {
-      tiktok:    { accessToken: String, refreshToken: String, expiresAt: Date, userId: String, username: String, savedAt: Date },
-      instagram: { accessToken: String, refreshToken: String, expiresAt: Date, userId: String, username: String, savedAt: Date },
-      facebook:  { accessToken: String, refreshToken: String, expiresAt: Date, userId: String, username: String, savedAt: Date },
-      twitter:   { accessToken: String, refreshToken: String, expiresAt: Date, userId: String, username: String, savedAt: Date },
-      youtube:   { accessToken: String, refreshToken: String, expiresAt: Date, userId: String, username: String, savedAt: Date },
-    },
   },
   { timestamps: true }
 );
