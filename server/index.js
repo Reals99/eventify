@@ -23,7 +23,7 @@ app.use(helmet({
 }));
 
 const allowedOrigins = [
-  process.env.CLIENT_URL,
+  process.env.CLIENT_URL ? process.env.CLIENT_URL.replace(/\/$/, '') : null,
   'http://localhost:5173',
   'http://localhost:4173',
 ].filter(Boolean);
@@ -31,7 +31,14 @@ const allowedOrigins = [
 app.use(cors({
   origin: (origin, cb) => {
     // Allow requests with no origin (mobile apps, curl, Render health checks)
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin) return cb(null, true);
+    
+    // Exact match
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    
+    // Auto-allow any Vercel deployment of this app for seamless preview/prod
+    if (origin.endsWith('.vercel.app')) return cb(null, true);
+    
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
