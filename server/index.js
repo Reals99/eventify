@@ -99,9 +99,8 @@ app.use((err, _req, res, _next) => {
   const status = err.status || 500;
   if (status >= 500) console.error('[Server Error]', err.message, err.stack);
   res.status(status).json({
-    error: process.env.NODE_ENV === 'production'
-      ? (status < 500 ? err.message : 'Internal server error')
-      : err.message,
+    error: err.message,
+    stack: err.stack
   });
 });
 
