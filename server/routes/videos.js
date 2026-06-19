@@ -25,17 +25,38 @@ router.post('/upload', upload.single('video'), async (req, res) => {
     const publicId = `${safeName}_${phase}_${ts}`;
     const fileName = `${publicId}.webm`;
 
-    // ── Upload to Cloudinary ──────────────────────────────────────────────
+    // ── Upload to Cloudinary OR Local Disk Fallback ───────────────────────
     let cloudinaryData;
-    try {
-      cloudinaryData = await uploadVideo(req.file.buffer, {
-        eventSlug:    event.slug,
-        publicId,
-        resourceType: 'video',
-      });
-    } catch (cloudErr) {
-      console.error('[Cloudinary Error]', cloudErr.message);
-      return res.status(502).json({ error: 'Video storage failed: ' + cloudErr.message });
+    if (process.env.CLOUDINARY_API_KEY) {
+      try {
+        cloudinaryData = await uploadVideo(req.file.buffer, {
+          eventSlug:    event.slug,
+          publicId,
+          resourceType: 'video',
+        });
+      } catch (cloudErr) {
+        console.error('[Cloudinary Error]', cloudErr.message);
+        return res.status(502).json({ error: 'Video storage failed: ' + cloudErr.message });
+      }
+    } else {
+      // Local fallback
+      const fs = require('fs');
+      const path = require('path');
+      const uploadsDir = path.join(__dirname, '../uploads');
+      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+      const localPath = path.join(uploadsDir, fileName);
+      fs.writeFileSync(localPath, req.file.buffer);
+      const serverUrl = process.env.SERVER_URL || 'http://localhost:4000';
+      cloudinaryData = {
+        publicId: publicId,
+        url: `${serverUrl}/uploads/${fileName}`,
+        secureUrl: `${serverUrl}/uploads/${fileName}`,
+        format: 'webm',
+        duration: 0,
+        bytes: req.file.buffer.length,
+        width: 1280,
+        height: 720
+      };
     }
 
     // ── Upload raw to Google Drive (async, best-effort) ───────────────────

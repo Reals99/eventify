@@ -9,7 +9,13 @@ const https = require('https');
  */
 async function generateEventCaption(event) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set.');
+  if (!apiKey) {
+    console.warn('[Claude Fallback] ANTHROPIC_API_KEY not set. Using dummy caption.');
+    return {
+      description: `Thanks for joining us at ${event.name}! What an incredible time. #eventify`,
+      hashtags: ['eventify', 'memories', 'celebration', 'fun', 'moments']
+    };
+  }
 
   const prompt = `You are a social media expert. Generate a compelling social media post caption and 5 relevant hashtags for the following event.
 
