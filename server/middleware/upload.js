@@ -15,13 +15,14 @@ const fileFilter = (_req, file, cb) => {
     'video/webm', 'audio/webm', 
     'video/mp4', 'audio/mp4', 
     'video/quicktime', 
+    'audio/mpeg', 'audio/mp3',
     'application/octet-stream', 
     'text/plain' // iOS Safari sometimes mislabels empty or generic blobs
   ];
   if (allowed.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error(`Unsupported file type: ${file.mimetype}. Only webm/mp4 accepted.`), false);
+    cb(new Error(`Unsupported file type: ${file.mimetype}. Only webm/mp4/mp3 accepted.`), false);
   }
 };
 
