@@ -48,6 +48,25 @@ export default function CreateEvent() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [loadingEvent, setLoadingEvent] = useState(isEdit);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append('logo', file);
+      const { data } = await api.post('/events/upload-logo', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setNested('frame', 'logoUrl', data.url);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to upload logo.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   // Load event for editing
   useEffect(() => {
@@ -398,13 +417,100 @@ export default function CreateEvent() {
                           ))}
                         </div>
 
-                        {/* Logo URL if showLogo */}
+                        {/* Logo Upload / URL if showLogo */}
                         {form.frame.showLogo && (
-                          <div style={{ marginBottom: 16 }}>
-                            <label>Logo URL</label>
-                            <input type="text" value={form.frame.logoUrl}
-                              onChange={e => setNested('frame', 'logoUrl', e.target.value)}
-                              placeholder="https://yoursite.com/logo.png" />
+                          <div style={{
+                            marginBottom: 16,
+                            padding: 14,
+                            borderRadius: 12,
+                            background: 'var(--surface-2, #f8f9fc)',
+                            border: '1px dashed var(--border)',
+                          }}>
+                            <label style={{ fontWeight: 600, display: 'block', marginBottom: 8 }}>
+                              Event Logo
+                            </label>
+
+                            {form.frame.logoUrl ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                                <img
+                                  src={form.frame.logoUrl}
+                                  alt="Event Logo Preview"
+                                  style={{
+                                    maxHeight: 64,
+                                    maxWidth: 140,
+                                    objectFit: 'contain',
+                                    background: '#fff',
+                                    padding: 4,
+                                    borderRadius: 8,
+                                    boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                                  }}
+                                />
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <label className="btn btn-sm btn-ghost" style={{ cursor: 'pointer', margin: 0 }}>
+                                    {uploadingLogo ? 'Uploading…' : 'Change Image'}
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      style={{ display: 'none' }}
+                                      onChange={handleLogoUpload}
+                                      disabled={uploadingLogo}
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    onClick={() => setNested('frame', 'logoUrl', '')}
+                                    style={{ color: '#e03131' }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <label
+                                  className="btn btn-primary btn-sm"
+                                  style={{
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    background: form.theme.primaryColor,
+                                  }}
+                                >
+                                  {uploadingLogo ? (
+                                    <>
+                                      <span className="spinner" style={{ width: 14, height: 14 }} />
+                                      Uploading…
+                                    </>
+                                  ) : (
+                                    <>
+                                      📁 Import from Gallery / Device
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        style={{ display: 'none' }}
+                                        onChange={handleLogoUpload}
+                                        disabled={uploadingLogo}
+                                      />
+                                    </>
+                                  )}
+                                </label>
+                                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-3)' }}>
+                                  Supports PNG, JPG, SVG, WebP. Transparent PNGs look best.
+                                </div>
+                                <div style={{ marginTop: 10 }}>
+                                  <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Or paste image link:</span>
+                                  <input
+                                    type="text"
+                                    value={form.frame.logoUrl}
+                                    onChange={e => setNested('frame', 'logoUrl', e.target.value)}
+                                    placeholder="https://yoursite.com/logo.png"
+                                    style={{ marginTop: 4, fontSize: 12 }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 

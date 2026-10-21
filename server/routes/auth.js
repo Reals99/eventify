@@ -181,10 +181,17 @@ router.get('/first-run', async (_req, res) => {
   }
 });
 
-module.exports = router;
+// ── GET /api/auth/google/url ───────────────────────────────────────────────
+// Returns Google OAuth URL for frontend navigation
+router.get('/google/url', protect, (_req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.status(501).json({ error: 'Google Drive not configured. Add GOOGLE_CLIENT_ID to .env' });
+  }
+  res.json({ url: getAuthUrl() });
+});
 
 // ── GET /api/auth/google ───────────────────────────────────────────────────
-// Redirect admin to Google consent screen
+// Redirect admin to Google consent screen (supports ?token=...)
 router.get('/google', protect, (_req, res) => {
   if (!process.env.GOOGLE_CLIENT_ID) {
     return res.status(501).json({ error: 'Google Drive not configured. Add credentials to .env' });
@@ -202,7 +209,8 @@ router.get('/google/callback', async (req, res) => {
   try {
     await exchangeCodeForTokens(code);
     // Redirect back to admin dashboard with success flag
-    res.redirect(`${process.env.CLIENT_URL}/admin?drive=connected`);
+    const clientUrl = process.env.CLIENT_URL || 'https://eventify-seven-taupe.vercel.app';
+    res.redirect(`${clientUrl}/admin?drive=connected`);
   } catch (err) {
     res.status(500).send(`Token exchange failed: ${err.message}`);
   }
@@ -213,3 +221,5 @@ router.get('/drive-status', protect, async (_req, res) => {
   const connected = await isDriveConnected();
   res.json({ connected });
 });
+
+module.exports = router;

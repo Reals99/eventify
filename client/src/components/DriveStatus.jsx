@@ -30,9 +30,21 @@ export default function DriveStatus() {
     );
   }
 
+  const handleConnect = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await api.get('/auth/google/url');
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Google Drive is not configured on the server. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to environment variables.');
+    }
+  };
+
   return (
-    <a
-      href="/api/auth/google"
+    <button
+      onClick={handleConnect}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
         padding: '5px 12px', borderRadius: 20,
@@ -43,6 +55,6 @@ export default function DriveStatus() {
     >
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--amber)', display: 'inline-block' }} />
       Connect Drive
-    </a>
+    </button>
   );
 }

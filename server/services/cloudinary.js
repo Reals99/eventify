@@ -180,4 +180,21 @@ async function deleteVideo(publicId, resourceType = 'video') {
   return deleteFromCloudinary(publicId, resourceType);
 }
 
-module.exports = { uploadVideo, deleteVideo };
+async function uploadImage(buffer, { folder = 'eventify/logos', publicId } = {}) {
+  if (!CLOUD() || !KEY() || !SECRET()) {
+    throw new Error('Cloudinary credentials not configured.');
+  }
+  const result = await uploadToCloudinary(buffer, {
+    publicId: publicId || `logo_${Date.now()}`,
+    folder,
+    resourceType: 'image',
+    tags: ['eventify', 'logo'],
+  });
+  return {
+    publicId:  result.public_id,
+    url:       result.url,
+    secureUrl: result.secure_url,
+  };
+}
+
+module.exports = { uploadVideo, deleteVideo, uploadImage };

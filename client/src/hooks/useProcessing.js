@@ -29,7 +29,11 @@ export default function useProcessing(videoId) {
     pollRef.current = setInterval(async () => {
       try {
         const { data } = await api.get(`/process/${videoId}/status`);
-        if (data.ready) {
+        if (data.error) {
+          stopPolling();
+          setProcessing(false);
+          setError(data.error);
+        } else if (data.ready) {
           stopPolling();
           setProcessing(false);
           setReady(true);

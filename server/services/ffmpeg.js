@@ -17,28 +17,55 @@ const path      = require('path');
 const os        = require('os');
 const crypto    = require('crypto');
 
-// ── Font paths (Poppins & DejaVu available on Ubuntu / Render) ───────────────
-const FONTS = {
-  bold:    '/usr/share/fonts/truetype/google-fonts/Poppins-Bold.ttf',
-  regular: '/usr/share/fonts/truetype/google-fonts/Poppins-Regular.ttf',
-  medium:  '/usr/share/fonts/truetype/google-fonts/Poppins-Medium.ttf',
-  serif:   '/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf',
-  // Fallback if Poppins not available (always present on Ubuntu)
-  fallback: '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-  fallbackBold: '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-};
-
-// Check which fonts are actually available
-function resolveFont(preferred, fallback) {
-  return fs.existsSync(preferred) ? preferred : fallback;
+// ── Resolve FFmpeg binary (prefers ffmpeg-static if available) ───────────────
+function getFfmpegPath() {
+  try {
+    const staticFfmpeg = require('ffmpeg-static');
+    if (staticFfmpeg && fs.existsSync(staticFfmpeg)) {
+      return staticFfmpeg;
+    }
+  } catch (_) {}
+  return 'ffmpeg';
 }
 
-const F = {
-  bold:    resolveFont(FONTS.bold,    FONTS.fallbackBold),
-  regular: resolveFont(FONTS.regular, FONTS.fallback),
-  medium:  resolveFont(FONTS.medium,  FONTS.fallback),
-  serif:   resolveFont(FONTS.serif,   FONTS.fallback),
-};
+// ── Bundled font paths (always available on any OS) ──────────────────────────
+const BUNDLED_DIR  = path.join(__dirname, '../fonts');
+const BUNDLED_BOLD = path.join(BUNDLED_DIR, 'Roboto-Bold.ttf');
+const BUNDLED_REG  = path.join(BUNDLED_DIR, 'Roboto-Regular.ttf');
+
+function resolveFontPath(type = 'regular') {
+  if (type === 'bold' && fs.existsSync(BUNDLED_BOLD)) {
+    return BUNDLED_BOLD.replace(/\\/g, '/');
+  }
+  if (fs.existsSync(BUNDLED_REG)) {
+    return BUNDLED_REG.replace(/\\/g, '/');
+  }
+  if (fs.existsSync(BUNDLED_BOLD)) {
+    return BUNDLED_BOLD.replace(/\\/g, '/');
+  }
+  // Linux fallback paths
+  if (fs.existsSync('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')) {
+    return '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
+  }
+  if (fs.existsSync('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')) {
+    return '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+  }
+  // Windows fallback paths
+  if (fs.existsSync('C:/Windows/Fonts/arialbd.ttf')) return 'C:/Windows/Fonts/arialbd.ttf';
+  if (fs.existsSync('C:/Windows/Fonts/arial.ttf')) return 'C:/Windows/Fonts/arial.ttf';
+
+  return null;
+}
+
+function fontArg(type = 'regular') {
+  const resolved = resolveFontPath(type);
+  if (resolved) {
+    // Escape colon for FFmpeg filter parameter on Windows
+    const escaped = resolved.replace(/:/g, '\\:');
+    return `fontfile='${escaped}'`;
+  }
+  return "font='Sans'";
+}
 
 // ── Social platform export configs ───────────────────────────────────────────
 const SOCIAL_CONFIGS = {
@@ -107,13 +134,13 @@ function buildFilterComplex(style, {
       `drawbox=x=0:y=${barY}:w=iw:h=${barH}:color=black@0.62:t=fill`,
     ];
     if (showEventTitle && title) {
-      parts.push(`drawtext=fontfile=${F.bold}:text='${title}':fontcolor=white:fontsize=32:x=${xAlign}:y=${titleY}:shadowcolor=black@0.4:shadowx=1:shadowy=1`);
+      parts.push(`drawtext=${fontArg('bold')}:text='${title}':fontcolor=white:fontsize=32:x=${xAlign}:y=${titleY}:shadowcolor=black@0.4:shadowx=1:shadowy=1`);
     }
     if (showGuestName && guest) {
-      parts.push(`drawtext=fontfile=${F.regular}:text='${guest}':fontcolor=white@0.85:fontsize=22:x=${xAlign}:y=${guestY}`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${guest}':fontcolor=white@0.85:fontsize=22:x=${xAlign}:y=${guestY}`);
     }
     if (showDate && dateStr) {
-      parts.push(`drawtext=fontfile=${F.regular}:text='${dateStr}':fontcolor=white@0.6:fontsize=18:x=w-text_w-20:y=h-${barH - 10}`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${dateStr}':fontcolor=white@0.6:fontsize=18:x=w-text_w-20:y=h-${barH - 10}`);
     }
     return parts.join(',');
   }
@@ -131,13 +158,13 @@ function buildFilterComplex(style, {
       `drawbox=x=0:y=h-${botH}:w=iw:h=${botH}:color=${ffPrim}@0.9:t=fill`,
     ];
     if (showEventTitle && title) {
-      parts.push(`drawtext=fontfile=${F.bold}:text='${title}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=(${topH}-text_h)/2`);
+      parts.push(`drawtext=${fontArg('bold')}:text='${title}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=(${topH}-text_h)/2`);
     }
     if (showGuestName && guest) {
-      parts.push(`drawtext=fontfile=${F.medium}:text='${guest}':fontcolor=white@0.9:fontsize=24:x=(w-text_w)/2:y=h-${botH}+(${botH}-text_h)/2`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${guest}':fontcolor=white@0.9:fontsize=24:x=(w-text_w)/2:y=h-${botH}+(${botH}-text_h)/2`);
     }
     if (showDate && dateStr) {
-      parts.push(`drawtext=fontfile=${F.regular}:text='${dateStr}':fontcolor=white@0.7:fontsize=18:x=w-text_w-16:y=(${topH}-text_h)/2`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${dateStr}':fontcolor=white@0.7:fontsize=18:x=w-text_w-16:y=(${topH}-text_h)/2`);
     }
     return parts.join(',');
   }
@@ -160,13 +187,13 @@ function buildFilterComplex(style, {
       `drawbox=x=30:y=h-80:w=iw-60:h=${lineH}:color=${hexToFF(primary)}:t=fill`,
     ];
     if (showEventTitle && title) {
-      parts.push(`drawtext=fontfile=${F.serif}:text='${title}':fontcolor=white:fontsize=34:x=${xAlign}:y=${titleY}:shadowcolor=black@0.6:shadowx=2:shadowy=2`);
+      parts.push(`drawtext=${fontArg('bold')}:text='${title}':fontcolor=white:fontsize=34:x=${xAlign}:y=${titleY}:shadowcolor=black@0.6:shadowx=2:shadowy=2`);
     }
     if (showGuestName && guest) {
-      parts.push(`drawtext=fontfile=${F.regular}:text='${guest}':fontcolor=${hexToFF(primary)}:fontsize=22:x=${xAlign}:y=${guestY}:itshape=1`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${guest}':fontcolor=${hexToFF(primary)}:fontsize=22:x=${xAlign}:y=${guestY}:itshape=1`);
     }
     if (showDate && dateStr) {
-      parts.push(`drawtext=fontfile=${F.regular}:text='${dateStr}':fontcolor=white@0.55:fontsize=16:x=w-text_w-30:y=h-38`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${dateStr}':fontcolor=white@0.55:fontsize=16:x=w-text_w-30:y=h-38`);
     }
     return parts.join(',');
   }
@@ -185,14 +212,14 @@ function buildFilterComplex(style, {
       `drawbox=x=0:y=${barY}:w=5:h=${barH2}:color=${hexToFF(primary)}:t=fill`,
     ];
     if (showEventTitle && title) {
-      // Title in accent color (neon glow approximated with border)
-      parts.push(`drawtext=fontfile=${F.bold}:text='${title}':fontcolor=${hexToFF(primary)}:fontsize=34:x=${isLeft ? '20' : xAlign}:y=${titleY}:borderw=2:bordercolor=${hexToFF(primary)}@0.5`);
+      // Title in accent color
+      parts.push(`drawtext=${fontArg('bold')}:text='${title}':fontcolor=${hexToFF(primary)}:fontsize=34:x=${isLeft ? '20' : xAlign}:y=${titleY}:borderw=2:bordercolor=${hexToFF(primary)}@0.5`);
     }
     if (showGuestName && guest) {
-      parts.push(`drawtext=fontfile=${F.regular}:text='${guest}':fontcolor=white@0.85:fontsize=22:x=${isLeft ? '20' : xAlign}:y=${guestY}`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${guest}':fontcolor=white@0.85:fontsize=22:x=${isLeft ? '20' : xAlign}:y=${guestY}`);
     }
     if (showDate && dateStr) {
-      parts.push(`drawtext=fontfile=${F.regular}:text='${dateStr}':fontcolor=${hexToFF(primary)}@0.7:fontsize=16:x=w-text_w-20:y=h-${barH2 - 10}`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${dateStr}':fontcolor=${hexToFF(primary)}@0.7:fontsize=16:x=w-text_w-20:y=h-${barH2 - 10}`);
     }
     return parts.join(',');
   }
@@ -212,13 +239,13 @@ function buildFilterComplex(style, {
       `drawbox=x=${xOff}+${boxW}:y=${boxY}+${Math.round(boxH * 0.4)}:w=${Math.round(boxW * 0.15)}:h=${Math.round(boxH * 0.6)}:color=white@0.9:t=fill`,
     ];
     if (showEventTitle && title) {
-      parts.push(`drawtext=fontfile=${F.bold}:text='${title}':fontcolor=white:fontsize=28:x=${xOff}+16:y=${boxY}+10`);
+      parts.push(`drawtext=${fontArg('bold')}:text='${title}':fontcolor=white:fontsize=28:x=${xOff}+16:y=${boxY}+10`);
     }
     if (showGuestName && guest) {
-      parts.push(`drawtext=fontfile=${F.regular}:text='${guest}':fontcolor=white@0.88:fontsize=20:x=${xOff}+16:y=${boxY}+46`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${guest}':fontcolor=white@0.88:fontsize=20:x=${xOff}+16:y=${boxY}+46`);
     }
     if (showDate && dateStr) {
-      parts.push(`drawtext=fontfile=${F.regular}:text='${dateStr}':fontcolor=white@0.75:fontsize=15:x=${xOff}+16:y=${boxY}+${boxH}+6`);
+      parts.push(`drawtext=${fontArg('regular')}:text='${dateStr}':fontcolor=white@0.75:fontsize=15:x=${xOff}+16:y=${boxY}+${boxH}+6`);
     }
     return parts.join(',');
   }
@@ -230,14 +257,15 @@ function buildFilterComplex(style, {
 // ── Run FFmpeg as a child process ─────────────────────────────────────────────
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
-    const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const bin = getFfmpegPath();
+    const proc = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stderr = '';
     proc.stderr.on('data', d => (stderr += d.toString()));
     proc.on('close', code => {
       if (code === 0) resolve();
       else reject(new Error(`FFmpeg exited ${code}: ${stderr.slice(-500)}`));
     });
-    proc.on('error', err => reject(new Error(`FFmpeg spawn error: ${err.message}`)));
+    proc.on('error', err => reject(new Error(`FFmpeg spawn error (${bin}): ${err.message}`)));
   });
 }
 
@@ -260,15 +288,32 @@ function writeTempFile(buffer, ext = 'webm') {
  */
 async function applyFrameOverlay(inputBuffer, frameConfig, eventInfo, guestName, targetSize = { w: 1280, h: 720 }) {
   if (!frameConfig?.enabled) {
-    // No frame — just transcode to mp4 at target size
     return transcodeOnly(inputBuffer, targetSize);
   }
 
   const inputPath  = writeTempFile(inputBuffer);
   const outputPath = path.join(os.tmpdir(), `eventify_${crypto.randomBytes(6).toString('hex')}.mp4`);
+  let logoPath     = null;
 
   try {
-    const filterStr = buildFilterComplex(frameConfig.style || 'minimal', {
+    // Optional logo download
+    if (frameConfig.showLogo && frameConfig.logoUrl) {
+      try {
+        let logoBuf;
+        if (frameConfig.logoUrl.startsWith('http')) {
+          logoBuf = await downloadBuffer(frameConfig.logoUrl);
+        } else if (fs.existsSync(frameConfig.logoUrl)) {
+          logoBuf = fs.readFileSync(frameConfig.logoUrl);
+        }
+        if (logoBuf && logoBuf.length > 0) {
+          logoPath = writeTempFile(logoBuf, 'png');
+        }
+      } catch (lErr) {
+        console.warn('[FFmpeg] Logo download skipped:', lErr.message);
+      }
+    }
+
+    const baseFilter = buildFilterComplex(frameConfig.style || 'minimal', {
       eventTitle:    eventInfo?.name || '',
       guestName,
       showEventTitle: frameConfig.showEventTitle !== false,
@@ -284,23 +329,36 @@ async function applyFrameOverlay(inputBuffer, frameConfig, eventInfo, guestName,
       targetH:        targetSize.h,
     });
 
-    await runFFmpeg([
-      '-y',
-      '-i', inputPath,
-      '-vf', filterStr,
+    const ffmpegArgs = ['-y', '-i', inputPath];
+
+    if (logoPath) {
+      ffmpegArgs.push('-i', logoPath);
+      // Combine baseFilter and logo overlay
+      const complexFilter = `[0:v]${baseFilter}[base];[1:v]scale=-1:56[logo];[base][logo]overlay=W-w-24:24`;
+      ffmpegArgs.push('-filter_complex', complexFilter);
+    } else {
+      ffmpegArgs.push('-vf', baseFilter);
+    }
+
+    // High performance encoding for fast response and low CPU/memory
+    ffmpegArgs.push(
       '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-crf', '23',
+      '-preset', 'ultrafast',
+      '-crf', '24',
       '-c:a', 'aac',
       '-b:a', '128k',
       '-movflags', '+faststart',
       '-max_muxing_queue_size', '1024',
-      outputPath,
-    ]);
+      outputPath
+    );
+
+    await runFFmpeg(ffmpegArgs);
 
     return fs.readFileSync(outputPath);
   } finally {
-    [inputPath, outputPath].forEach(p => { try { fs.unlinkSync(p); } catch {} });
+    [inputPath, outputPath, logoPath].filter(Boolean).forEach(p => {
+      try { fs.unlinkSync(p); } catch {}
+    });
   }
 }
 
@@ -317,8 +375,8 @@ async function transcodeOnly(inputBuffer, targetSize = { w: 1280, h: 720 }) {
       '-i', inputPath,
       '-vf', `scale=${targetSize.w}:${targetSize.h}:force_original_aspect_ratio=decrease,pad=${targetSize.w}:${targetSize.h}:(ow-iw)/2:(oh-ih)/2:black`,
       '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-crf', '23',
+      '-preset', 'ultrafast',
+      '-crf', '24',
       '-c:a', 'aac',
       '-b:a', '128k',
       '-movflags', '+faststart',
@@ -331,7 +389,7 @@ async function transcodeOnly(inputBuffer, targetSize = { w: 1280, h: 720 }) {
 }
 
 /**
- * Generate all social platform variants of a processed video.
+ * Generate all social platform variants of a processed video sequentially to save RAM.
  *
  * @param {Buffer}  framedBuffer   Already-framed mp4 buffer
  * @param {string[]} platforms     e.g. ['tiktok', 'instagram']
@@ -340,36 +398,34 @@ async function transcodeOnly(inputBuffer, targetSize = { w: 1280, h: 720 }) {
 async function generateSocialVariants(framedBuffer, platforms = []) {
   const results = {};
 
-  await Promise.all(
-    platforms.map(async (platform) => {
-      const config = SOCIAL_CONFIGS[platform];
-      if (!config) return;
+  for (const platform of platforms) {
+    const config = SOCIAL_CONFIGS[platform];
+    if (!config) continue;
 
-      const inputPath  = writeTempFile(framedBuffer, 'mp4');
-      const outputPath = path.join(os.tmpdir(), `eventify_${platform}_${crypto.randomBytes(6).toString('hex')}.mp4`);
+    const inputPath  = writeTempFile(framedBuffer, 'mp4');
+    const outputPath = path.join(os.tmpdir(), `eventify_${platform}_${crypto.randomBytes(6).toString('hex')}.mp4`);
 
-      try {
-        await runFFmpeg([
-          '-y',
-          '-i', inputPath,
-          '-vf', `scale=${config.w}:${config.h}:force_original_aspect_ratio=decrease,pad=${config.w}:${config.h}:(ow-iw)/2:(oh-ih)/2:black`,
-          '-c:v', 'libx264',
-          '-preset', 'fast',
-          '-crf', '23',
-          '-c:a', 'aac',
-          '-b:a', '128k',
-          '-movflags', '+faststart',
-          outputPath,
-        ]);
-        results[platform] = fs.readFileSync(outputPath);
-      } catch (err) {
-        console.error(`[FFmpeg ${platform}]`, err.message);
-        results[platform] = null; // non-fatal per platform
-      } finally {
-        [inputPath, outputPath].forEach(p => { try { fs.unlinkSync(p); } catch {} });
-      }
-    })
-  );
+    try {
+      await runFFmpeg([
+        '-y',
+        '-i', inputPath,
+        '-vf', `scale=${config.w}:${config.h}:force_original_aspect_ratio=decrease,pad=${config.w}:${config.h}:(ow-iw)/2:(oh-ih)/2:black`,
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-crf', '24',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-movflags', '+faststart',
+        outputPath,
+      ]);
+      results[platform] = fs.readFileSync(outputPath);
+    } catch (err) {
+      console.error(`[FFmpeg ${platform}]`, err.message);
+      results[platform] = null;
+    } finally {
+      [inputPath, outputPath].forEach(p => { try { fs.unlinkSync(p); } catch {} });
+    }
+  }
 
   return results;
 }

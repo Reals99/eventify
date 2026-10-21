@@ -24,6 +24,13 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
   const [errorMsg, setErrorMsg] = useState('');
   const [audioLevel, setAudioLevel] = useState(0); // 0-100 for visualiser
 
+  // ── Camera adjustment state ───────────────────────────────────────────────
+  const [zoom, setZoom] = useState(1.0); // 1.0 - 4.0
+  const [iso, setIso] = useState(400); // 100, 200, 400, 800, 1600, 3200
+  const [kelvin, setKelvin] = useState(4500); // 2700, 3200, 4500, 5600, 6500
+  const [aperture, setAperture] = useState('f/2.8'); // 'f/1.4', 'f/2.0', 'f/2.8', 'f/4.0', 'f/5.6', 'f/8.0'
+  const [capabilities, setCapabilities] = useState({});
+
   const streamRef = useRef(null);
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -88,6 +95,15 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
       }
 
       startAnalyser(stream);
+
+      // Detect hardware capabilities
+      try {
+        const vTrack = stream.getVideoTracks()[0];
+        if (vTrack?.getCapabilities) {
+          setCapabilities(vTrack.getCapabilities());
+        }
+      } catch (_) {}
+
       setRecordingState(RECORDING_STATES.READY);
       return stream;
     } catch (err) {
@@ -187,6 +203,93 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
     setRecordingState(RECORDING_STATES.IDLE);
   }, [stopStream]);
 
+  // ── Apply camera controls ─────────────────────────────────────────────────
+  const applyHardwareConstraints = useCallback((newSettings = {}) => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    if (!track || !track.applyConstraints) return;
+
+    try {
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      const advanced = {};
+
+      const targetZoom = newSettings.zoom !== undefined ? newSettings.zoom : zoom;
+      const targetIso = newSettings.iso !== undefined ? newSettings.iso : iso;
+      const targetKelvin = newSettings.kelvin !== undefined ? newSettings.kelvin : kelvin;
+
+      if (caps.zoom && targetZoom) {
+        advanced.zoom = Math.min(caps.zoom.max || 4, Math.max(caps.zoom.min || 1, targetZoom));
+      }
+      if (caps.iso && targetIso) {
+        advanced.iso = Math.min(caps.iso.max || 3200, Math.max(caps.iso.min || 100, targetIso));
+      }
+      if (caps.colorTemperature && targetKelvin) {
+        advanced.whiteBalanceMode = 'manual';
+        advanced.colorTemperature = Math.min(caps.colorTemperature.max || 7000, Math.max(caps.colorTemperature.min || 2500, targetKelvin));
+      }
+
+      if (Object.keys(advanced).length > 0) {
+        track.applyConstraints({ advanced: [advanced] }).catch(() => {});
+      }
+    } catch (_) {}
+  }, [zoom, iso, kelvin]);
+
+  const updateZoom = useCallback((val) => {
+    const num = Math.max(1.0, Math.min(4.0, Number(val)));
+    setZoom(num);
+    applyHardwareConstraints({ zoom: num });
+  }, [applyHardwareConstraints]);
+
+  const updateIso = useCallback((val) => {
+    const num = Number(val);
+    setIso(num);
+    applyHardwareConstraints({ iso: num });
+  }, [applyHardwareConstraints]);
+
+  const updateKelvin = useCallback((val) => {
+    const num = Number(val);
+    setKelvin(num);
+    applyHardwareConstraints({ kelvin: num });
+  }, [applyHardwareConstraints]);
+
+  const updateAperture = useCallback((val) => {
+    setAperture(val);
+  }, []);
+
+  // Compute CSS filter for real-time visual grading across all devices
+  const getCameraFilter = useCallback(() => {
+    const isoMap = {
+      100: 'brightness(0.88) contrast(1.10)',
+      200: 'brightness(0.94) contrast(1.05)',
+      400: 'brightness(1.00) contrast(1.00)',
+      800: 'brightness(1.14) contrast(0.97)',
+      1600: 'brightness(1.26) contrast(0.94)',
+      3200: 'brightness(1.40) contrast(0.90)',
+    };
+    const isoCss = isoMap[iso] || 'brightness(1.0) contrast(1.0)';
+
+    const kelvinMap = {
+      2700: 'sepia(0.22) saturate(1.18) hue-rotate(-12deg)',
+      3200: 'sepia(0.12) saturate(1.10) hue-rotate(-6deg)',
+      4500: '',
+      5600: 'hue-rotate(6deg) saturate(1.05)',
+      6500: 'hue-rotate(14deg) saturate(1.10)',
+    };
+    const kelvinCss = kelvinMap[kelvin] || '';
+
+    const apertureMap = {
+      'f/1.4': 'brightness(1.12)',
+      'f/2.0': 'brightness(1.06)',
+      'f/2.8': '',
+      'f/4.0': 'brightness(0.96) contrast(1.04)',
+      'f/5.6': 'brightness(0.92) contrast(1.08)',
+      'f/8.0': 'brightness(0.86) contrast(1.12)',
+    };
+    const apertureCss = apertureMap[aperture] || '';
+
+    return `${isoCss} ${kelvinCss} ${apertureCss}`.trim();
+  }, [iso, kelvin, aperture]);
+
   return {
     recordingState,
     elapsedSeconds,
@@ -198,6 +301,17 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
     startRecording,
     stopRecording,
     reset,
+    // Camera controls
+    zoom,
+    iso,
+    kelvin,
+    aperture,
+    capabilities,
+    updateZoom,
+    updateIso,
+    updateKelvin,
+    updateAperture,
+    getCameraFilter,
   };
 }
 

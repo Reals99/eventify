@@ -1,6 +1,22 @@
 const router = require('express').Router();
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const Event = require('../models/Event');
 const { protect } = require('../middleware/auth');
+const { uploadImage } = require('../services/cloudinary');
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files (PNG, JPG, SVG, WebP) are accepted.'), false);
+    }
+  },
+});
 
 // ── PUBLIC: slug lookup (kiosk uses this — no auth required) ──────────────
 router.get('/slug/:slug', async (req, res) => {
@@ -17,6 +33,33 @@ router.get('/slug/:slug', async (req, res) => {
 
 // All routes below require authentication
 router.use(protect);
+
+// ── POST /api/events/upload-logo ──────────────────────────────────────────
+// Upload event logo from device gallery / computer
+router.post('/upload-logo', imageUpload.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No logo image file was provided.' });
+
+    let logoUrl = '';
+    if (process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_CLOUD_NAME) {
+      const result = await uploadImage(req.file.buffer, { folder: 'eventify/logos' });
+      logoUrl = result.secureUrl;
+    } else {
+      const uploadsDir = path.join(__dirname, '../uploads');
+      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+      const ext = req.file.originalname ? path.extname(req.file.originalname) || '.png' : '.png';
+      const fileName = `logo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
+      fs.writeFileSync(path.join(uploadsDir, fileName), req.file.buffer);
+      const serverUrl = process.env.SERVER_URL || `${req.protocol}://${req.get('host')}`;
+      logoUrl = `${serverUrl}/uploads/${fileName}`;
+    }
+
+    res.json({ url: logoUrl });
+  } catch (err) {
+    console.error('[Logo Upload]', err.message);
+    res.status(500).json({ error: err.message || 'Logo upload failed.' });
+  }
+});
 
 // ── GET /api/events ───────────────────────────────────────────────────────
 // List all events for this admin

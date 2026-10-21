@@ -53,6 +53,7 @@ const videoSchema = new mongoose.Schema(
       facebook: { cloudinaryId: String, url: String },    // 16:9
       twitter: { cloudinaryId: String, url: String },     // 16:9
       youtube: { cloudinaryId: String, url: String },     // 16:9
+      error: String,
     },
 
     // ── Review ─────────────────────────────────────────────────────────────

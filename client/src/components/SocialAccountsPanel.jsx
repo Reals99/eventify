@@ -51,6 +51,8 @@ export default function SocialAccountsPanel() {
   const [disconnecting, setDisconnecting] = useState({});
   const [notice, setNotice]           = useState('');
 
+  const [showGuide, setShowGuide]     = useState(false);
+
   useEffect(() => {
     // Check for ?social=xxx&status=connected in URL on return from OAuth
     const params = new URLSearchParams(window.location.search);
@@ -68,9 +70,15 @@ export default function SocialAccountsPanel() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleConnect = (platformId) => {
-    // Redirect to server OAuth handler
-    window.location.href = `/api/social/${platformId}/connect`;
+  const handleConnect = async (platformId) => {
+    try {
+      const { data } = await api.get(`/social/${platformId}/connect-url`);
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || `Could not connect to ${platformId}. Ensure credentials are configured in Render environment variables.`);
+    }
   };
 
   const handleDisconnect = async (platformId) => {
@@ -151,8 +159,46 @@ export default function SocialAccountsPanel() {
         })}
       </div>
 
+      <div style={{ marginTop: 16 }}>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => setShowGuide(!showGuide)}
+          style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          {showGuide ? '▼ Hide Social Setup Guide' : '▶ How to configure TikTok, YouTube & Instagram'}
+        </button>
+
+        {showGuide && (
+          <div style={{
+            marginTop: 10,
+            padding: 16,
+            borderRadius: 12,
+            background: 'var(--surface-2, #f8f9fc)',
+            border: '1px solid var(--border)',
+            fontSize: 12,
+            lineHeight: 1.6,
+          }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: 14 }}>Social Platform Credentials Setup</h4>
+            <div style={{ marginBottom: 12 }}>
+              <strong>1. YouTube (Shorts & Videos):</strong>
+              <div>Uses your existing Google Cloud project. Enable <em>YouTube Data API v3</em> in Google Cloud console. Add scope <code>https://www.googleapis.com/auth/youtube.upload</code>. Required in Render env: <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code>.</div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <strong>2. Instagram & Facebook (Reels & Feed):</strong>
+              <div>Create a Meta Developer app at developers.facebook.com. Link your Instagram Professional account to a Facebook Page. Required in Render env: <code>FACEBOOK_APP_ID</code> and <code>FACEBOOK_APP_SECRET</code>.</div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <strong>3. TikTok:</strong>
+              <div>Create a TikTok Developer app at developers.tiktok.com and request Content Posting API approval. Required in Render env: <code>TIKTOK_CLIENT_KEY</code> and <code>TIKTOK_CLIENT_SECRET</code>.</div>
+            </div>
+            <div style={{ color: 'var(--text-3)', fontSize: 11 }}>
+              OAuth Redirect URI for all platforms: <code>https://eventify-server-ogku.onrender.com/api/social/[platform]/callback</code>
+            </div>
+          </div>
+        )}
+      </div>
+
       <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 16, lineHeight: 1.5 }}>
-        Each platform requires its own developer app setup. See <code>SOCIAL_SETUP.md</code> for step-by-step instructions.
         Instagram is automatically connected when you connect Facebook (if your Instagram is linked to a Facebook Page).
       </p>
     </div>

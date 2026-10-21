@@ -41,45 +41,69 @@ router.get('/status', protect, async (req, res) => {
   res.json({ status });
 });
 
-// ── GET /api/social/:platform/connect ────────────────────────────────────────
-router.get('/:platform/connect', protect, (req, res) => {
-  const { platform } = req.params;
-  const adminId = req.admin._id.toString();
-  const state   = crypto.randomBytes(16).toString('hex');
-
+// ── Helper to generate platform auth URL and state ──────────────────────────
+function generatePlatformAuth(platform, adminId) {
+  const state = crypto.randomBytes(16).toString('hex');
   let authUrl;
   const entry = { adminId, platform };
 
   switch (platform) {
     case 'tiktok':
-      if (!process.env.TIKTOK_CLIENT_KEY) return res.status(501).json({ error: 'TikTok credentials not configured.' });
+      if (!process.env.TIKTOK_CLIENT_KEY) {
+        throw new Error('TikTok credentials not configured. Set TIKTOK_CLIENT_KEY in environment.');
+      }
       authUrl = getTikTokAuthUrl(state);
       break;
     case 'facebook':
     case 'instagram':
-      if (!process.env.FACEBOOK_APP_ID) return res.status(501).json({ error: 'Facebook credentials not configured.' });
+      if (!process.env.FACEBOOK_APP_ID) {
+        throw new Error('Facebook credentials not configured. Set FACEBOOK_APP_ID in environment.');
+      }
       authUrl = getFacebookAuthUrl(state);
-      entry.platform = 'facebook'; // Instagram uses same Facebook OAuth
+      entry.platform = 'facebook';
       break;
     case 'twitter':
-      if (!process.env.TWITTER_CLIENT_ID) return res.status(501).json({ error: 'Twitter credentials not configured.' });
+      if (!process.env.TWITTER_CLIENT_ID) {
+        throw new Error('Twitter credentials not configured. Set TWITTER_CLIENT_ID in environment.');
+      }
       const pkce = generatePKCE();
       entry.codeVerifier = pkce.verifier;
       authUrl = getTwitterAuthUrl(state, pkce.challenge);
       break;
     case 'youtube':
-      if (!process.env.GOOGLE_CLIENT_ID) return res.status(501).json({ error: 'Google credentials not configured.' });
+      if (!process.env.GOOGLE_CLIENT_ID) {
+        throw new Error('Google credentials not configured. Set GOOGLE_CLIENT_ID in environment.');
+      }
       authUrl = getYouTubeAuthUrl(state);
       break;
     default:
-      return res.status(400).json({ error: `Unknown platform: ${platform}` });
+      throw new Error(`Unknown platform: ${platform}`);
   }
 
   oauthState.set(state, entry);
-  // Clean up state after 10 minutes
   setTimeout(() => oauthState.delete(state), 10 * 60 * 1000);
+  return authUrl;
+}
 
-  res.redirect(authUrl);
+// ── GET /api/social/:platform/connect-url ────────────────────────────────────
+// Return JSON URL for frontend navigation
+router.get('/:platform/connect-url', protect, (req, res) => {
+  try {
+    const authUrl = generatePlatformAuth(req.params.platform, req.admin._id.toString());
+    res.json({ url: authUrl });
+  } catch (err) {
+    res.status(501).json({ error: err.message });
+  }
+});
+
+// ── GET /api/social/:platform/connect ────────────────────────────────────────
+router.get('/:platform/connect', protect, (req, res) => {
+  try {
+    const authUrl = generatePlatformAuth(req.params.platform, req.admin._id.toString());
+    res.redirect(authUrl);
+  } catch (err) {
+    res.status(501).json({ error: err.message });
+  }
 });
 
 // ── GET /api/social/tiktok/callback ──────────────────────────────────────────

@@ -89,7 +89,7 @@ async function initiateResumableUpload(accessToken, metadata) {
         },
       },
       (res) => {
-        if (res.statusCode === 200 || res.statusCode === 200) {
+        if (res.statusCode === 200 || res.statusCode === 201) {
           resolve(res.headers.location); // resumable upload URI
         } else {
           let data = '';

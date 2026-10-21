@@ -14,6 +14,7 @@ const Video  = require('../models/Video');
 const Event  = require('../models/Event');
 const { protect } = require('../middleware/auth');
 const { uploadVideo } = require('../services/cloudinary');
+const { uploadToDrive, isDriveConnected } = require('../services/googleDrive');
 const {
   applyFrameOverlay,
   generateSocialVariants,
@@ -83,7 +84,30 @@ async function _processVideo(video, event) {
   await Video.findByIdAndUpdate(videoId, {
     'processed.framed.cloudinaryId': framedUpload.publicId,
     'processed.framed.url':          framedUpload.secureUrl,
+    'processed.error':               null,
   });
+
+  // 3b. Push framed video to Google Drive automatically if connected
+  try {
+    const driveConnected = await isDriveConnected();
+    if (driveConnected) {
+      const framedFileName = `${(video.guestName || 'guest').replace(/\s+/g, '_')}_${video.phase || 'rec'}_framed_${Date.now()}.mp4`;
+      const driveResult = await uploadToDrive(framedBuffer, {
+        eventName: event.name,
+        fileName: framedFileName,
+        mimeType: 'video/mp4',
+      });
+      await Video.findByIdAndUpdate(videoId, {
+        'drive.fileId': driveResult.fileId,
+        'drive.webViewLink': driveResult.webViewLink,
+        'drive.uploaded': true,
+        'drive.uploadedAt': new Date(),
+      });
+      console.log(`[Process] ✅ Auto-pushed framed video to Google Drive: ${driveResult.webViewLink}`);
+    }
+  } catch (dErr) {
+    console.error('[Process] Drive framed upload notice:', dErr.message);
+  }
 
   // 4. Determine which social platforms need variants
   const enabledPlatforms = Object.entries(event.socials || {})
@@ -95,35 +119,33 @@ async function _processVideo(video, event) {
     return;
   }
 
-  // 5. Generate social variants from the framed version
+  // 5. Generate social variants from the framed version (sequential & fast)
   const variants = await generateSocialVariants(framedBuffer, enabledPlatforms);
   console.log(`[Process] Social variants generated: ${Object.keys(variants).join(', ')}`);
 
   // 6. Upload each variant to Cloudinary
   const updatePayload = {};
 
-  await Promise.all(
-    enabledPlatforms.map(async (platform) => {
-      const buf = variants[platform];
-      if (!buf) {
-        console.warn(`[Process] No buffer for ${platform} — skipping`);
-        return;
-      }
+  for (const platform of enabledPlatforms) {
+    const buf = variants[platform];
+    if (!buf) {
+      console.warn(`[Process] No buffer for ${platform} — skipping`);
+      continue;
+    }
 
-      try {
-        const result = await uploadVideo(buf, {
-          eventSlug:    event.slug,
-          publicId:     `${video.cloudinary.publicId}_${platform}`,
-          resourceType: 'video',
-        });
-        updatePayload[`processed.${platform}.cloudinaryId`] = result.publicId;
-        updatePayload[`processed.${platform}.url`]          = result.secureUrl;
-        console.log(`[Process] ${platform} uploaded: ${result.secureUrl}`);
-      } catch (err) {
-        console.error(`[Process] ${platform} upload failed:`, err.message);
-      }
-    })
-  );
+    try {
+      const result = await uploadVideo(buf, {
+        eventSlug:    event.slug,
+        publicId:     `${video.cloudinary.publicId}_${platform}`,
+        resourceType: 'video',
+      });
+      updatePayload[`processed.${platform}.cloudinaryId`] = result.publicId;
+      updatePayload[`processed.${platform}.url`]          = result.secureUrl;
+      console.log(`[Process] ${platform} uploaded: ${result.secureUrl}`);
+    } catch (err) {
+      console.error(`[Process] ${platform} upload failed:`, err.message);
+    }
+  }
 
   // 7. Final DB update
   if (Object.keys(updatePayload).length > 0) {
@@ -145,6 +167,7 @@ router.get('/:videoId/status', protect, async (req, res) => {
     const done = !!(video.processed?.framed?.url);
     res.json({
       ready:       done,
+      error:       video.processed?.error || null,
       framedUrl:   video.processed?.framed?.url   || null,
       tiktokUrl:   video.processed?.tiktok?.url   || null,
       instagramUrl: video.processed?.instagram?.url || null,
