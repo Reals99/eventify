@@ -181,21 +181,6 @@ router.get('/first-run', async (_req, res) => {
   }
 });
 
-// ── GET /api/auth/superadmin-info ─────────────────────────────────────────
-// Returns the registered superadmin details
-router.get('/superadmin-info', async (_req, res) => {
-  try {
-    const superadmin = await Admin.findOne({ role: 'superadmin' }).select('name email role createdAt');
-    if (!superadmin) {
-      const anyAdmin = await Admin.findOne().select('name email role createdAt');
-      return res.json({ admin: anyAdmin || null });
-    }
-    res.json({ admin: superadmin });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ── GET /api/auth/google/url ───────────────────────────────────────────────
 // Returns Google OAuth URL for frontend navigation
 router.get('/google/url', protect, (_req, res) => {
