@@ -44,7 +44,7 @@ const eventSchema = new mongoose.Schema(
       },
       preset: {
         type: String,
-        enum: ['purple', 'teal', 'coral', 'amber', 'dark', 'custom'],
+        enum: ['purple', 'teal', 'coral', 'amber', 'dark', 'rose', 'ocean', 'custom'],
         default: 'purple',
       },
     },
