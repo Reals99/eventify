@@ -55,7 +55,7 @@ class UploadQueue {
   /**
    * Add a recording to the queue and begin background processing.
    */
-  enqueue({ blob, filename, eventId, guestName, phase, recordingType }) {
+  enqueue({ blob, filename, eventId, guestName, phase, recordingType, isFramed }) {
     const item = {
       id: `queue_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       blob,
@@ -64,6 +64,7 @@ class UploadQueue {
       guestName: guestName || 'Anonymous',
       phase,
       recordingType,
+      isFramed: Boolean(isFramed),
       status: 'pending', // 'pending' | 'uploading' | 'completed' | 'failed'
       progress: 0,
       attempts: 0,
@@ -102,6 +103,7 @@ class UploadQueue {
       formData.append('guestName', nextItem.guestName);
       formData.append('phase', nextItem.phase);
       formData.append('recordingType', nextItem.recordingType);
+      formData.append('isFramed', nextItem.isFramed ? 'true' : 'false');
 
       await api.post('/videos/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },

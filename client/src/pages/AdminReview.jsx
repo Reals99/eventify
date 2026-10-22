@@ -155,7 +155,8 @@ export default function AdminReview() {
   const isProcessing    = processing.processing;
   const frameReady      = processing.ready || !!(selected?.processed?.framed?.url);
   const framedUrl       = processing.framedUrl || selected?.processed?.framed?.url;
-  const rawUrl          = selected?.cloudinary?.secureUrl;
+  const rawUrl          = selected?.cloudinary?.secureUrl || selected?.cloudinary?.url;
+  const activeTab       = selected?._previewTab || (frameReady ? 'framed' : 'raw');
   const isApproved      = selected?.status === 'approved';
   const isFlagged       = selected?.status === 'flagged';
   const frameEnabled    = event?.frame?.enabled;
@@ -284,20 +285,20 @@ export default function AdminReview() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
                 {/* ── Video preview area ────────────────────────────────── */}
                 <div>
-                  {/* Tab: Raw vs Framed */}
+                  {/* Tab: Framed vs Raw */}
                   {frameReady && (
                     <div style={{ display: 'flex', gap: 0, marginBottom: 12 }}>
                       {[
-                        { key: 'raw',    label: '📹 Raw' },
                         { key: 'framed', label: '🎬 Framed' },
+                        { key: 'raw',    label: '📹 Raw' },
                       ].map(tab => (
                         <button key={tab.key}
                           onClick={() => setSelected(s => ({ ...s, _previewTab: tab.key }))}
                           style={{
                             padding: '7px 18px', border: 'none', cursor: 'pointer',
-                            borderBottom: (selected._previewTab || 'raw') === tab.key ? `2px solid ${primary}` : '2px solid transparent',
+                            borderBottom: activeTab === tab.key ? `2px solid ${primary}` : '2px solid transparent',
                             background: 'none', fontSize: 13, fontWeight: 500,
-                            color: (selected._previewTab || 'raw') === tab.key ? primary : 'var(--text-2)',
+                            color: activeTab === tab.key ? primary : 'var(--text-2)',
                           }}>
                           {tab.label}
                         </button>
@@ -311,8 +312,8 @@ export default function AdminReview() {
 
                     {selected.recordingType === 'video' ? (
                       <video
-                        key={(selected._previewTab === 'framed' && framedUrl) ? framedUrl : rawUrl}
-                        src={(selected._previewTab === 'framed' && framedUrl) ? framedUrl : rawUrl}
+                        key={(activeTab === 'framed' && framedUrl) ? framedUrl : rawUrl}
+                        src={(activeTab === 'framed' && framedUrl) ? framedUrl : rawUrl}
                         controls
                         style={{ width: '100%', display: 'block', borderRadius: 12, maxHeight: 400 }}
                       />
@@ -329,9 +330,9 @@ export default function AdminReview() {
                   </div>
 
                   {/* Framed preview ready notice */}
-                  {frameReady && framedUrl && (
+                  {frameReady && (
                     <div style={{ marginTop: 10, padding: '8px 14px', background: 'var(--green-bg)', borderRadius: 8, fontSize: 13, color: '#085041', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      ✅ Frame overlay applied — click <strong>Framed</strong> tab to preview
+                      ✅ Recorded with <strong>{event?.frame?.style || 'designed'}</strong> frame applied — ready for instant review
                     </div>
                   )}
 
@@ -437,14 +438,16 @@ export default function AdminReview() {
                     )}
                   </div>
 
-                  {/* Re-process button */}
-                  {isApproved && frameEnabled && (
+                  {/* Frame overlay status */}
+                  {frameEnabled && (
                     <div className="card" style={{ padding: 16 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                         Frame overlay
                       </div>
                       {frameReady ? (
-                        <div style={{ fontSize: 13, color: 'var(--green)' }}>✅ Frame applied ({event.frame?.style})</div>
+                        <div style={{ fontSize: 13, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          ✅ Initialized with {event.frame?.style || 'designed'} frame
+                        </div>
                       ) : isProcessing ? (
                         <div style={{ fontSize: 13, color: 'var(--text-2)', display: 'flex', gap: 6, alignItems: 'center' }}>
                           <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
@@ -453,7 +456,7 @@ export default function AdminReview() {
                       ) : (
                         <button className="btn btn-primary btn-sm" style={{ width: '100%', background: primary }}
                           onClick={() => triggerProcessing(selected._id)}>
-                          ▶ Apply frame now
+                          ▶ Re-generate server frame
                         </button>
                       )}
                       {processing.error && (

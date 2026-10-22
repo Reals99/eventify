@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { drawCanvasFrame } from '../utils/frameRenderer';
 
 export const RECORDING_STATES = {
   IDLE: 'idle',
@@ -12,12 +13,13 @@ export const RECORDING_STATES = {
 
 /**
  * useMediaRecorder
- * Manages getUserMedia + MediaRecorder lifecycle.
+ * Manages getUserMedia + Canvas Frame Compositor + MediaRecorder lifecycle.
  *
  * @param {'video'|'audio'} mode
  * @param {number} maxSeconds  - auto-stop after this many seconds
+ * @param {object} frameConfig - event branding and design frame settings
  */
-export default function useMediaRecorder(mode, maxSeconds = 120) {
+export default function useMediaRecorder(mode, maxSeconds = 120, frameConfig = null) {
   const [recordingState, setRecordingState] = useState(RECORDING_STATES.IDLE);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [blob, setBlob] = useState(null);
@@ -32,6 +34,10 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
   const [capabilities, setCapabilities] = useState({});
 
   const streamRef = useRef(null);
+  const canvasStreamRef = useRef(null);
+  const compositeAnimRef = useRef(null);
+  const isCompositingRef = useRef(false);
+
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
@@ -39,12 +45,76 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
   const animFrameRef = useRef(null);
   const videoPreviewRef = useRef(null); // attach stream to <video> element
 
+  const frameConfigRef = useRef(frameConfig);
+  frameConfigRef.current = frameConfig;
+
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+
+  // Pre-load logo image if provided
+  const logoImgRef = useRef(null);
+  useEffect(() => {
+    if (frameConfig?.showLogo && frameConfig?.logoUrl) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = frameConfig.logoUrl;
+      img.onload = () => { logoImgRef.current = img; };
+      img.onerror = () => { logoImgRef.current = null; };
+    } else {
+      logoImgRef.current = null;
+    }
+  }, [frameConfig?.showLogo, frameConfig?.logoUrl]);
+
+  // ── Camera filter CSS helper ──────────────────────────────────────────────
+  const getCameraFilter = useCallback(() => {
+    const isoMap = {
+      100: 'brightness(0.88) contrast(1.10)',
+      200: 'brightness(0.94) contrast(1.05)',
+      400: 'brightness(1.00) contrast(1.00)',
+      800: 'brightness(1.14) contrast(0.97)',
+      1600: 'brightness(1.26) contrast(0.94)',
+      3200: 'brightness(1.40) contrast(0.90)',
+    };
+    const isoCss = isoMap[iso] || 'brightness(1.0) contrast(1.0)';
+
+    const kelvinMap = {
+      2700: 'sepia(0.22) saturate(1.18) hue-rotate(-12deg)',
+      3200: 'sepia(0.12) saturate(1.10) hue-rotate(-6deg)',
+      4500: '',
+      5600: 'hue-rotate(6deg) saturate(1.05)',
+      6500: 'hue-rotate(14deg) saturate(1.10)',
+    };
+    const kelvinCss = kelvinMap[kelvin] || '';
+
+    const apertureMap = {
+      'f/1.4': 'brightness(1.12)',
+      'f/2.0': 'brightness(1.06)',
+      'f/2.8': '',
+      'f/4.0': 'brightness(0.96) contrast(1.04)',
+      'f/5.6': 'brightness(0.92) contrast(1.08)',
+      'f/8.0': 'brightness(0.86) contrast(1.12)',
+    };
+    const apertureCss = apertureMap[aperture] || '';
+
+    return `${isoCss} ${kelvinCss} ${apertureCss}`.trim();
+  }, [iso, kelvin, aperture]);
+
+  const filterRef = useRef(getCameraFilter);
+  filterRef.current = getCameraFilter;
+
   // ── Clean up on unmount ───────────────────────────────────────────────────
   useEffect(() => () => stopStream(), []);
 
   const stopStream = useCallback(() => {
     clearInterval(timerRef.current);
     cancelAnimationFrame(animFrameRef.current);
+    cancelAnimationFrame(compositeAnimRef.current);
+    isCompositingRef.current = false;
+
+    if (canvasStreamRef.current) {
+      canvasStreamRef.current.getTracks().forEach(t => t.stop());
+      canvasStreamRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -131,6 +201,71 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
     setBlob(null);
     setElapsedSeconds(0);
 
+    let recordStream = stream;
+
+    // ── Real-Time Canvas Compositing (Bakes frame into video stream) ─────────
+    const videoEl = videoPreviewRef.current;
+    const activeFrame = frameConfigRef.current;
+    const shouldCompositeFrame = mode === 'video' && activeFrame && activeFrame.enabled !== false;
+
+    if (shouldCompositeFrame && videoEl && typeof HTMLCanvasElement !== 'undefined' && HTMLCanvasElement.prototype.captureStream) {
+      try {
+        const canvas = document.createElement('canvas');
+        const w = videoEl.videoWidth || 1280;
+        const h = videoEl.videoHeight || 720;
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+
+        isCompositingRef.current = true;
+
+        const compositeLoop = () => {
+          if (!isCompositingRef.current) return;
+
+          // 1. Draw camera video (mirrored horizontally for natural selfie view)
+          ctx.save();
+          ctx.translate(w, 0);
+          ctx.scale(-1, 1);
+
+          const filterVal = filterRef.current ? filterRef.current() : '';
+          if (filterVal) ctx.filter = filterVal;
+
+          const currentZoom = zoomRef.current || 1.0;
+          if (currentZoom > 1.0) {
+            const sw = w / currentZoom;
+            const sh = h / currentZoom;
+            const sx = (w - sw) / 2;
+            const sy = (h - sh) / 2;
+            ctx.drawImage(videoEl, sx, sy, sw, sh, 0, 0, w, h);
+          } else {
+            ctx.drawImage(videoEl, 0, 0, w, h);
+          }
+          ctx.restore();
+
+          // Reset filter before drawing crisp frame overlay
+          ctx.filter = 'none';
+
+          // 2. Burn frame overlay directly onto canvas (unmirrored for readable text)
+          drawCanvasFrame(ctx, w, h, frameConfigRef.current, logoImgRef.current);
+
+          compositeAnimRef.current = requestAnimationFrame(compositeLoop);
+        };
+
+        compositeLoop();
+
+        const canvasStream = canvas.captureStream(30);
+        canvasStreamRef.current = canvasStream;
+
+        const audioTracks = stream.getAudioTracks();
+        recordStream = audioTracks.length > 0
+          ? new MediaStream([canvasStream.getVideoTracks()[0], audioTracks[0]])
+          : canvasStream;
+      } catch (compErr) {
+        console.warn('[useMediaRecorder] Canvas compositor fallback to raw stream:', compErr);
+        recordStream = stream;
+      }
+    }
+
     // Pick best supported mimeType
     const mimeTypes = [
       'video/webm;codecs=vp9,opus',
@@ -143,7 +278,7 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
     ];
     const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || '';
 
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    const recorder = new MediaRecorder(recordStream, mimeType ? { mimeType } : {});
     recorderRef.current = recorder;
 
     recorder.ondataavailable = (e) => {
@@ -181,10 +316,18 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
   // ── Stop recording ────────────────────────────────────────────────────────
   const stopRecording = useCallback(() => {
     clearInterval(timerRef.current);
+    isCompositingRef.current = false;
+    cancelAnimationFrame(compositeAnimRef.current);
+
     if (recorderRef.current && recorderRef.current.state === 'recording') {
       recorderRef.current.stop();
     }
-    // Stop all tracks so camera light goes off
+    // Stop canvas tracks
+    if (canvasStreamRef.current) {
+      canvasStreamRef.current.getTracks().forEach(t => t.stop());
+      canvasStreamRef.current = null;
+    }
+    // Stop camera tracks so camera light turns off
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -255,40 +398,6 @@ export default function useMediaRecorder(mode, maxSeconds = 120) {
   const updateAperture = useCallback((val) => {
     setAperture(val);
   }, []);
-
-  // Compute CSS filter for real-time visual grading across all devices
-  const getCameraFilter = useCallback(() => {
-    const isoMap = {
-      100: 'brightness(0.88) contrast(1.10)',
-      200: 'brightness(0.94) contrast(1.05)',
-      400: 'brightness(1.00) contrast(1.00)',
-      800: 'brightness(1.14) contrast(0.97)',
-      1600: 'brightness(1.26) contrast(0.94)',
-      3200: 'brightness(1.40) contrast(0.90)',
-    };
-    const isoCss = isoMap[iso] || 'brightness(1.0) contrast(1.0)';
-
-    const kelvinMap = {
-      2700: 'sepia(0.22) saturate(1.18) hue-rotate(-12deg)',
-      3200: 'sepia(0.12) saturate(1.10) hue-rotate(-6deg)',
-      4500: '',
-      5600: 'hue-rotate(6deg) saturate(1.05)',
-      6500: 'hue-rotate(14deg) saturate(1.10)',
-    };
-    const kelvinCss = kelvinMap[kelvin] || '';
-
-    const apertureMap = {
-      'f/1.4': 'brightness(1.12)',
-      'f/2.0': 'brightness(1.06)',
-      'f/2.8': '',
-      'f/4.0': 'brightness(0.96) contrast(1.04)',
-      'f/5.6': 'brightness(0.92) contrast(1.08)',
-      'f/8.0': 'brightness(0.86) contrast(1.12)',
-    };
-    const apertureCss = apertureMap[aperture] || '';
-
-    return `${isoCss} ${kelvinCss} ${apertureCss}`.trim();
-  }, [iso, kelvin, aperture]);
 
   return {
     recordingState,

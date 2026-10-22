@@ -78,6 +78,8 @@ router.post('/upload', upload.single('video'), async (req, res) => {
     }
 
     // ── Save Video record ─────────────────────────────────────────────────
+    const isFramed = req.body.isFramed === 'true' || req.body.isFramed === true || (recordingType === 'video' && Boolean(event.frame?.enabled));
+
     const video = await Video.create({
       event: event._id,
       guestName: guestName || 'Anonymous',
@@ -92,6 +94,12 @@ router.post('/upload', upload.single('video'), async (req, res) => {
         bytes:     cloudinaryData.bytes,
         width:     cloudinaryData.width,
         height:    cloudinaryData.height,
+      },
+      processed: {
+        framed: isFramed ? {
+          url: cloudinaryData.secureUrl,
+          cloudinaryId: cloudinaryData.publicId,
+        } : undefined,
       },
       drive: driveData,
       status: 'pending',

@@ -4,6 +4,7 @@ import api from '../utils/api';
 import useMediaRecorder, { RECORDING_STATES, fmtTime } from '../hooks/useMediaRecorder';
 import AudioVisualiser from '../components/AudioVisualiser';
 import PulseRings from '../components/PulseRings';
+import KioskFrameOverlay from '../components/KioskFrameOverlay';
 import uploadQueue from '../utils/uploadQueue';
 import '../styles/kiosk.css';
 
@@ -52,8 +53,27 @@ export default function KioskPage() {
     return uploadQueue.subscribe((st) => setQueueState(st));
   }, []);
 
+  // Frame configuration for compositor & live overlay
+  const frameConfig = {
+    enabled: event?.frame?.enabled !== false,
+    style: event?.frame?.style || 'minimal',
+    eventName: event?.name || '',
+    guestName: guestName || 'Guest',
+    eventDate: event?.date,
+    primaryColor: event?.theme?.primaryColor || '#7F77DD',
+    secondaryColor: event?.theme?.secondaryColor || '#EEEDFE',
+    accentColor: event?.theme?.accentColor || '#3C3489',
+    fontStyle: event?.theme?.fontStyle || 'modern',
+    showEventTitle: event?.frame?.showEventTitle !== false,
+    showGuestName: event?.frame?.showGuestName !== false,
+    showDate: Boolean(event?.frame?.showDate),
+    showLogo: Boolean(event?.frame?.showLogo),
+    logoUrl: event?.frame?.logoUrl || '',
+    textPosition: event?.frame?.textPosition || 'bottom',
+  };
+
   // Recording hook — reinitialised when recMode changes
-  const recorder = useMediaRecorder(recMode || 'video', event?.kiosk?.maxRecordingSeconds || 120);
+  const recorder = useMediaRecorder(recMode || 'video', event?.kiosk?.maxRecordingSeconds || 120, frameConfig);
 
   // ── Load event by slug ───────────────────────────────────────────────────
   useEffect(() => {
@@ -126,6 +146,7 @@ export default function KioskPage() {
       guestName: guestName || 'Anonymous',
       phase,
       recordingType: recMode,
+      isFramed: event?.frame?.enabled !== false,
     });
 
     // Instantly transition to DONE so the next person can record!
@@ -393,7 +414,7 @@ export default function KioskPage() {
           </h1>
 
           {/* Preview area */}
-          <div className={`kiosk-preview-wrap ${ringLight ? 'kiosk-ringlight-border-preview active' : ''}`} style={{ overflow: 'hidden' }}>
+          <div className={`kiosk-preview-wrap ${ringLight ? 'kiosk-ringlight-border-preview active' : ''}`} style={{ overflow: 'hidden', position: 'relative' }}>
             {recMode === 'video' ? (
               <>
                 <video
@@ -408,8 +429,18 @@ export default function KioskPage() {
                     transition: 'transform 0.15s ease, filter 0.15s ease',
                   }}
                 />
+                {/* Live Frame Overlay over camera preview */}
+                {event?.frame?.enabled !== false && (
+                  <KioskFrameOverlay
+                    frame={event?.frame}
+                    theme={event?.theme}
+                    eventName={event?.name}
+                    guestName={guestName}
+                    eventDate={event?.date}
+                  />
+                )}
                 {isRecording && (
-                  <div className="kiosk-rec-overlay">
+                  <div className="kiosk-rec-overlay" style={{ zIndex: 20 }}>
                     <div className="kiosk-rec-dot" />
                     <span className="kiosk-rec-timer">{fmtTime(recorder.elapsedSeconds)}</span>
                   </div>
@@ -673,7 +704,6 @@ export default function KioskPage() {
                 controls
                 style={{
                   width: '100%', borderRadius: 16,
-                  transform: 'scaleX(-1)', // keep mirror for review
                   boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
                 }}
               />
@@ -738,7 +768,7 @@ export default function KioskPage() {
           <h1 className="kiosk-h1">Thank you{guestName ? `, ${guestName}` : ''}!</h1>
           <p className="kiosk-p" style={{ maxWidth: 380 }}>
             Your {phase} is queued and saving in the background. Next person can record immediately!
-            {event.frame?.enabled ? ' The framed video will be created automatically.' : ''}
+            {event?.frame?.enabled ? ' Your video has been recorded with the event frame applied.' : ''}
           </p>
           <button className="kiosk-btn kiosk-btn-primary" onClick={goIdle}
             style={{ background: primary, marginTop: 12 }}>
