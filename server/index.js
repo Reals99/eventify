@@ -73,7 +73,8 @@ const generalLimiter = rateLimit({
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/auth',    authLimiter,    authRoutes);
+app.use(['/api/auth/login', '/api/auth/register', '/api/auth/invite'], authLimiter);
+app.use('/api/auth',    generalLimiter, authRoutes);
 app.use('/api/videos',  uploadLimiter,  videoRoutes);
 app.use('/api/events',  generalLimiter, eventRoutes);
 app.use('/api/ai',      generalLimiter, aiRoutes);

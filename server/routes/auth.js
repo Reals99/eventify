@@ -64,13 +64,14 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const cleanEmail = (email || '').toLowerCase().trim();
 
-    if (!email || !password) {
+    if (!cleanEmail || !password) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
     // Include password field explicitly (it's select:false on schema)
-    const admin = await Admin.findOne({ email: email.toLowerCase() }).select('+password');
+    const admin = await Admin.findOne({ email: cleanEmail }).select('+password');
     if (!admin) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }

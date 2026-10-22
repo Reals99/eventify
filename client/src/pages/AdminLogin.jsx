@@ -16,7 +16,7 @@ export default function AdminLogin() {
     setError('');
     setLoading(true);
     try {
-      await login(form.email, form.password);
+      await login(form.email.trim(), form.password);
       navigate('/admin');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
