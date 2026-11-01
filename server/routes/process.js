@@ -71,14 +71,30 @@ async function _processVideo(video, event) {
   );
   console.log(`[Process] Frame applied — ${framedBuffer.length} bytes`);
 
-  // 3. Upload framed version to Cloudinary
+  // 3. Upload framed version to Cloudinary (with local fallback)
   const framedPublicId = `${video.cloudinary.publicId}_framed`;
-  const framedUpload = await uploadVideo(framedBuffer, {
-    eventSlug:    event.slug,
-    publicId:     framedPublicId,
-    resourceType: 'video',
-  });
-  console.log(`[Process] Framed uploaded: ${framedUpload.secureUrl}`);
+  let framedUpload = null;
+  try {
+    framedUpload = await uploadVideo(framedBuffer, {
+      eventSlug:    event.slug,
+      publicId:     framedPublicId,
+      resourceType: 'video',
+    });
+    console.log(`[Process] Framed uploaded to Cloudinary: ${framedUpload.secureUrl}`);
+  } catch (err) {
+    console.warn('[Process] Cloudinary upload failed, falling back to local server storage:', err.message);
+    const fs = require('fs');
+    const path = require('path');
+    const uploadsDir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    const localFileName = `${framedPublicId}.mp4`;
+    fs.writeFileSync(path.join(uploadsDir, localFileName), framedBuffer);
+    const serverUrl = process.env.SERVER_URL || 'https://eventify-server-ogku.onrender.com';
+    framedUpload = {
+      publicId: framedPublicId,
+      secureUrl: `${serverUrl}/uploads/${localFileName}`,
+    };
+  }
 
   // Partial save — framed version available immediately
   await Video.findByIdAndUpdate(videoId, {

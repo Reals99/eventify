@@ -26,7 +26,7 @@ router.post('/upload', upload.single('video'), async (req, res) => {
     const fileName = `${publicId}.webm`;
 
     // ── Upload to Cloudinary OR Local Disk Fallback ───────────────────────
-    let cloudinaryData;
+    let cloudinaryData = null;
     if (process.env.CLOUDINARY_API_KEY) {
       try {
         cloudinaryData = await uploadVideo(req.file.buffer, {
@@ -35,10 +35,11 @@ router.post('/upload', upload.single('video'), async (req, res) => {
           resourceType: 'video',
         });
       } catch (cloudErr) {
-        console.error('[Cloudinary Error]', cloudErr.message);
-        return res.status(502).json({ error: 'Video storage failed: ' + cloudErr.message });
+        console.warn('[Cloudinary Warning] Upload failed, falling back to local server storage:', cloudErr.message);
       }
-    } else {
+    }
+
+    if (!cloudinaryData) {
       // Local fallback
       const fs = require('fs');
       const path = require('path');
@@ -46,7 +47,7 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
       const localPath = path.join(uploadsDir, fileName);
       fs.writeFileSync(localPath, req.file.buffer);
-      const serverUrl = process.env.SERVER_URL || 'http://localhost:4000';
+      const serverUrl = process.env.SERVER_URL || `${req.protocol}://${req.get('host')}`;
       cloudinaryData = {
         publicId: publicId,
         url: `${serverUrl}/uploads/${fileName}`,
